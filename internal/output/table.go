@@ -11,8 +11,9 @@ import (
 // TableOptions tweaks rendering. NoColor is honoured here so the
 // renderer stays decoupled from terminal-detection logic.
 type TableOptions struct {
-	NoColor bool
-	Verbose bool
+	NoColor      bool
+	Verbose      bool
+	OnlyFailures bool // hide passes/skips
 }
 
 // WriteTable renders a list of results as a fixed-width table followed
@@ -23,6 +24,17 @@ func WriteTable(w io.Writer, results []check.Result, opts TableOptions) error {
 		return nil
 	}
 
+	// Optionally drop non-failures from the table (summary still uses all).
+	displayed := results
+	if opts.OnlyFailures {
+		displayed = make([]check.Result, 0, len(results))
+		for _, r := range results {
+			if r.Status == check.StatusFail || r.Status == check.StatusError {
+				displayed = append(displayed, r)
+			}
+		}
+	}
+
 	color := func(prefix, text string) string {
 		if opts.NoColor || prefix == "" {
 			return text
@@ -30,10 +42,10 @@ func WriteTable(w io.Writer, results []check.Result, opts TableOptions) error {
 		return prefix + text + ansiReset
 	}
 
-	// Compute column widths.
+	// Compute column widths from displayed rows.
 	idW, sevW := len("ID"), len("SEVERITY")
 	stW, nameW := len("STATUS"), len("CHECK")
-	for _, r := range results {
+	for _, r := range displayed {
 		idW = max(idW, len(r.ID))
 		sevW = max(sevW, len(r.SeverityLabel))
 		stW = max(stW, len(string(r.Status)))
@@ -47,7 +59,7 @@ func WriteTable(w io.Writer, results []check.Result, opts TableOptions) error {
 	}
 	fmt.Fprintln(w, header)
 
-	for _, r := range results {
+	for _, r := range displayed {
 		sev := color(SeverityColor(r.Severity), padRight(r.SeverityLabel, sevW))
 		st := color(StatusColor(r.Status), padRight(string(r.Status), stW))
 		fmt.Fprintf(w, "  %-*s  %s  %s  %-*s\n",
@@ -65,21 +77,59 @@ func WriteTable(w io.Writer, results []check.Result, opts TableOptions) error {
 		}
 	}
 
-	// Summary footer.
+	// Summary footer (always uses the full result set, never the filtered one).
 	summary := summarize(results)
+	score, _ := riskScoreLabel(summary)
+
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "  %s  total=%d pass=%d fail=%d skip=%d error=%d\n",
-		color(ansiBold, "Summary:"),
+		color(ansiBold, "Summary: "),
 		summary.Total, summary.Pass, summary.Fail, summary.Skip, summary.Error)
 	if summary.Fail > 0 {
 		bySev := summary.FailBySeverity
 		fmt.Fprintf(w, "  %s   critical=%d  high=%d  medium=%d  low=%d  info=%d\n",
-			color(ansiBold, "Failed: "),
+			color(ansiBold, "Failed:  "),
 			bySev[check.SeverityCritical], bySev[check.SeverityHigh],
 			bySev[check.SeverityMedium], bySev[check.SeverityLow],
 			bySev[check.SeverityInfo])
 	}
+	fmt.Fprintf(w, "  %s    %s/100\n",
+		color(ansiBold, "Risk:    "),
+		color(SeverityColor(scoreSeverity(score)), fmt.Sprintf("%d", score)))
 	return nil
+}
+
+// riskScoreLabel mirrors the HTML risk score so terminal and HTML agree.
+func riskScoreLabel(s Summary) (int, check.Severity) {
+	weights := map[check.Severity]int{
+		check.SeverityCritical: 16, check.SeverityHigh: 8,
+		check.SeverityMedium: 4, check.SeverityLow: 2, check.SeverityInfo: 0,
+	}
+	if s.Total == 0 {
+		return 0, check.SeverityInfo
+	}
+	got := 0
+	max := s.Total * weights[check.SeverityCritical]
+	for sev, n := range s.FailBySeverity {
+		got += n * weights[sev]
+	}
+	if max == 0 {
+		return 0, check.SeverityInfo
+	}
+	pct := got * 100 / max
+	return pct, scoreSeverity(pct)
+}
+
+func scoreSeverity(pct int) check.Severity {
+	switch {
+	case pct >= 50:
+		return check.SeverityCritical
+	case pct >= 25:
+		return check.SeverityHigh
+	case pct >= 10:
+		return check.SeverityMedium
+	}
+	return check.SeverityLow
 }
 
 func padRight(s string, n int) string {

@@ -58,18 +58,30 @@ escape version
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--output` | `table` | `table` / `json` / `markdown` |
+| `--output` | `table` | `table` / `json` / `markdown` / `html` / `sarif` |
 | `--output-file` | _(stdout)_ | Write to a file instead of stdout |
 | `--module` | _(all)_ | Comma-separated: `container`, `kubernetes`, `host`, `cloud` |
 | `--id` | _(all)_ | Comma-separated check IDs; trailing `*` is a glob |
 | `--min-severity` | `info` | Drop findings below this severity |
 | `--fail-on` | `info` | Exit non-zero when any failure ≥ severity (use `info` to never fail) |
+| `--only-failures` | `false` | In table output, hide passes/skips |
 | `--parallelism` | `8` | Max concurrent checks |
 | `--timeout` | `5s` | Per-check timeout |
 | `--global-timeout` | `60s` | Whole-run budget (`0` = none) |
 | `--no-color` | `false` | Disable ANSI in table output |
 | `--verbose` | `false` | Show evidence even on passing checks |
 | `--quiet` | `false` | Silence stderr logging |
+
+### Other commands
+
+```bash
+escape explain container.privileged host.proc_kcore
+# Prints metadata + remediation for those checks without running them.
+# Useful when triaging a finding from a saved JSON/SARIF report.
+
+escape list-checks --module host --output json
+# Browse the catalogue.
+```
 
 ---
 
@@ -97,8 +109,18 @@ escape version
 | host | `host.devices.raw_block` | critical | Raw block devices (sda, vda, nvme…) in `/dev` |
 | cloud | `cloud.imds.reachable` | high | Passive TCP probe of well-known IMDS endpoints |
 | cloud | `cloud.env.credentials` | high | Suspicious env var names (values redacted) |
+| container | `container.fs.read_only_root` | medium | / mounted read-only |
+| container | `container.user_namespace` | medium | uid_map shows root inside == root on host |
+| container | `container.runtime.sandboxed` | info | gVisor / Kata / Firecracker fingerprint |
+| host | `host.proc_kcore` | critical | /proc/kcore visible (host RAM read) |
+| host | `host.proc_kallsyms` | medium | Unredacted kernel symbols (KASLR bypass aid) |
+| host | `host.modprobe_path` | high | /proc/sys/kernel/modprobe readable (CVE-2022-0492) |
+| host | `host.kernel.version` | info | /proc/version |
+| host | `host.network.shared` | high | Shared host network namespace heuristic |
+| host | `host.sysctl.unsafe` | medium | ptrace_scope, dmesg_restrict, kptr_restrict… |
+| kubernetes | `k8s.token.decoded` | medium | Passive JWT claim decode (no signature, no API call) |
 
-That's 20 checks across 4 modules. Adding more is a matter of dropping a file in `modules/<area>/` with an `init()` that calls `engine.Register`.
+That's **30 checks across 4 modules**. Adding more is a matter of dropping a file in `modules/<area>/` with an `init()` that calls `engine.Register`.
 
 ---
 
@@ -246,18 +268,44 @@ The new check appears automatically in `escape list-checks` and `escape scan`.
 
 ---
 
+## Lab
+
+A Docker Compose lab that exercises every module against deliberately-misconfigured containers ships under [`lab/`](lab/). Six services demonstrate distinct misconfiguration classes (privileged, host mounts, capability buffet, rootful, host PID/network, plus a hardened control). The runner asserts expected findings and exits non-zero on regressions.
+
+```bash
+make release   # produces dist/escape-linux-amd64
+make lab       # builds lab images, runs scan in each, verifies findings
+make lab-down  # tear down
+```
+
+⚠️ **The lab requests real kernel privileges.** Run it on a throwaway VM, never on a host you care about. See [`lab/README.md`](lab/README.md) for details.
+
 ## CI integration
 
+### Plain JSON gate
+
 ```yaml
-# .github/workflows/audit.yml
 - name: container audit
   run: |
     docker run --rm \
-      -v $(pwd)/dist/escape:/escape:ro \
+      -v $(pwd)/dist/escape-linux-amd64:/escape:ro \
       <your-image> /escape scan --output json --output-file /tmp/escape.json --fail-on high
 ```
 
-`escape` exits with code 1 when a finding meets `--fail-on`, so it slots cleanly into a pipeline gate.
+`escape` exits with code 1 when a finding meets `--fail-on`.
+
+### GitHub Code Scanning (SARIF)
+
+```yaml
+- name: escape audit
+  run: docker exec my-app /escape scan --output sarif --output-file escape.sarif
+
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: escape.sarif
+```
+
+Findings show up in the **Security** tab with severity badges driven by the `security-severity` property emitted by the SARIF formatter.
 
 ---
 

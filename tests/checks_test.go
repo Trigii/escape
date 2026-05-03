@@ -203,6 +203,173 @@ func TestSATokenPresent(t *testing.T) {
 	}
 }
 
+// --- new checks (host kernel, sysctls, network, rootfs, userns, JWT) ---
+
+func TestKcoreVisible(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/kcore"] = "" // mere existence is enough
+	old := host.DefaultFS
+	host.DefaultFS = mock
+	defer func() { host.DefaultFS = old }()
+
+	c := findCheck(t, "host.proc_kcore")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("kcore visible should fail, got %s", res.Status)
+	}
+}
+
+func TestKcoreAbsent(t *testing.T) {
+	mock := New()
+	old := host.DefaultFS
+	host.DefaultFS = mock
+	defer func() { host.DefaultFS = old }()
+
+	c := findCheck(t, "host.proc_kcore")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusPass {
+		t.Fatalf("kcore absent should pass, got %s ev=%v", res.Status, res.Evidence)
+	}
+}
+
+func TestModprobePathReadable(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/sys/kernel/modprobe"] = "/sbin/modprobe\n"
+	old := host.DefaultFS
+	host.DefaultFS = mock
+	defer func() { host.DefaultFS = old }()
+
+	c := findCheck(t, "host.modprobe_path")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("modprobe readable should fail, got %s", res.Status)
+	}
+}
+
+func TestSysctlSafe(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/sys/kernel/yama/ptrace_scope"] = "1\n"
+	mock.Files["/proc/sys/kernel/dmesg_restrict"] = "1\n"
+	old := host.DefaultFS
+	host.DefaultFS = mock
+	defer func() { host.DefaultFS = old }()
+
+	c := findCheck(t, "host.sysctl.unsafe")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusPass {
+		t.Fatalf("safe sysctls should pass, got %s ev=%v", res.Status, res.Evidence)
+	}
+}
+
+func TestSysctlUnsafe(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/sys/kernel/yama/ptrace_scope"] = "0\n"
+	mock.Files["/proc/sys/kernel/kptr_restrict"] = "0\n"
+	old := host.DefaultFS
+	host.DefaultFS = mock
+	defer func() { host.DefaultFS = old }()
+
+	c := findCheck(t, "host.sysctl.unsafe")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("unsafe sysctls should fail, got %s", res.Status)
+	}
+}
+
+func TestRootfsReadOnly(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/self/mountinfo"] = "1 0 8:1 / / parent shared:1 - ext4 /dev/root ro,noatime\n"
+	old := container.DefaultFS
+	container.DefaultFS = mock
+	defer func() { container.DefaultFS = old }()
+
+	c := findCheck(t, "container.fs.read_only_root")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusPass {
+		t.Fatalf("ro root should pass, got %s ev=%v", res.Status, res.Evidence)
+	}
+}
+
+func TestRootfsWritable(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/self/mountinfo"] = "1 0 8:1 / / parent shared:1 - ext4 /dev/root rw,noatime\n"
+	old := container.DefaultFS
+	container.DefaultFS = mock
+	defer func() { container.DefaultFS = old }()
+
+	c := findCheck(t, "container.fs.read_only_root")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("rw root should fail, got %s", res.Status)
+	}
+}
+
+func TestUserNamespaceUnmapped(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/self/uid_map"] = "         0          0 4294967295\n"
+	old := container.DefaultFS
+	container.DefaultFS = mock
+	defer func() { container.DefaultFS = old }()
+
+	c := findCheck(t, "container.user_namespace")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("unmapped userns should fail, got %s", res.Status)
+	}
+}
+
+func TestUserNamespaceRemapped(t *testing.T) {
+	mock := New()
+	mock.Files["/proc/self/uid_map"] = "         0     100000      65536\n"
+	old := container.DefaultFS
+	container.DefaultFS = mock
+	defer func() { container.DefaultFS = old }()
+
+	c := findCheck(t, "container.user_namespace")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusPass {
+		t.Fatalf("remapped userns should pass, got %s ev=%v", res.Status, res.Evidence)
+	}
+}
+
+func TestTokenDecodeClaimsButNotValue(t *testing.T) {
+	// Hand-crafted unsigned JWT: header.payload.signature
+	// Payload is base64url of:
+	//   {"iss":"k","sub":"system:serviceaccount:demo:reader","exp":4102444800,
+	//    "kubernetes.io":{"namespace":"demo","serviceaccount":{"name":"reader"}}}
+	header := "eyJhbGciOiJSUzI1NiJ9"
+	payload := "eyJpc3MiOiJrIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRlbW86cmVhZGVyIiwiZXhwIjo0MTAyNDQ0ODAwLCJrdWJlcm5ldGVzLmlvIjp7Im5hbWVzcGFjZSI6ImRlbW8iLCJzZXJ2aWNlYWNjb3VudCI6eyJuYW1lIjoicmVhZGVyIn19fQ"
+	sig := "DEADBEEF"
+	tok := header + "." + payload + "." + sig
+
+	mock := New()
+	mock.Files[kubernetes.SATokenPath] = tok
+	oldFS := kubernetes.DefaultFS
+	kubernetes.DefaultFS = mock
+	defer func() { kubernetes.DefaultFS = oldFS }()
+
+	oldEnv := kubernetes.Env
+	kubernetes.Env = func(k string) string { return "10.0.0.1" }
+	defer func() { kubernetes.Env = oldEnv }()
+
+	c := findCheck(t, "k8s.token.decoded")
+	res := c.Run(context.Background())
+	if res.Status != check.StatusFail {
+		t.Fatalf("decoded token check should produce a finding, got %s", res.Status)
+	}
+	joined := strings.Join(res.Evidence, "\n")
+	if !strings.Contains(joined, "namespace: demo") {
+		t.Errorf("expected namespace claim in evidence, got: %v", res.Evidence)
+	}
+	if !strings.Contains(joined, "serviceaccount: reader") {
+		t.Errorf("expected serviceaccount claim, got: %v", res.Evidence)
+	}
+	// CRITICAL: the raw token MUST NOT appear in evidence.
+	if strings.Contains(joined, sig) || strings.Contains(joined, payload) {
+		t.Fatalf("token VALUE leaked into evidence: %v", res.Evidence)
+	}
+}
+
 // --- runner sanity ---
 
 func TestRunnerHonoursTimeout(t *testing.T) {

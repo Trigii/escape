@@ -1,0 +1,454 @@
+{
+  "tool": "escape",
+  "version": "445fab0-dirty",
+  "generated_at": "2026-05-03T16:49:03.501803876Z",
+  "summary": {
+    "Total": 30,
+    "Pass": 14,
+    "Fail": 9,
+    "Skip": 7,
+    "Error": 0,
+    "FailBySeverity": {
+      "0": 2,
+      "2": 3,
+      "3": 3,
+      "4": 1
+    }
+  },
+  "results": [
+    {
+      "id": "cloud.env.credentials",
+      "name": "Cloud credentials in environment",
+      "module": "cloud",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Detects suspicious env var names commonly carrying long-lived cloud credentials. Values are never logged.",
+      "started_at": "2026-05-03T16:49:01.991768792Z",
+      "duration_ns": 5518375
+    },
+    {
+      "id": "cloud.imds.reachable",
+      "name": "Cloud instance metadata reachable",
+      "module": "cloud",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Performs a passive TCP probe of well-known IMDS endpoints. No HTTP, no token requests.",
+      "started_at": "2026-05-03T16:49:01.991189875Z",
+      "duration_ns": 1509957293
+    },
+    {
+      "id": "container.apparmor",
+      "name": "AppArmor profile applied",
+      "module": "container",
+      "severity": 1,
+      "severity_label": "low",
+      "status": "skip",
+      "description": "Reports the active AppArmor profile or 'unconfined'.",
+      "evidence": [
+        "no AppArmor LSM detected (/proc/self/attr/current unreadable)"
+      ],
+      "started_at": "2026-05-03T16:49:01.991785875Z",
+      "duration_ns": 21607292
+    },
+    {
+      "id": "container.capabilities.dangerous",
+      "name": "Dangerous Linux capabilities present",
+      "module": "container",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Inspects CapEff in /proc/self/status and flags any capability commonly used as a stepping stone to container escape.",
+      "evidence": [
+        "CapEff=0x0000000000000000 — no dangerous bits set"
+      ],
+      "started_at": "2026-05-03T16:49:01.992776209Z",
+      "duration_ns": 29109500
+    },
+    {
+      "id": "container.fs.read_only_root",
+      "name": "Read-only root filesystem",
+      "module": "container",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "pass",
+      "description": "Reports whether / is mounted read-only. A writable rootfs lets attackers persist payloads anywhere.",
+      "evidence": [
+        "/ mounted read-only (ro,relatime)"
+      ],
+      "started_at": "2026-05-03T16:49:02.004589834Z",
+      "duration_ns": 9277042
+    },
+    {
+      "id": "container.mounts.docker_sock",
+      "name": "Container runtime socket exposed",
+      "module": "container",
+      "severity": 4,
+      "severity_label": "critical",
+      "status": "pass",
+      "description": "Detects whether docker.sock, containerd.sock or crio.sock are reachable from inside the container — equivalent to giving root on the host.",
+      "started_at": "2026-05-03T16:49:02.025363459Z",
+      "duration_ns": 684792
+    },
+    {
+      "id": "container.mounts.sensitive",
+      "name": "Sensitive host paths mounted",
+      "module": "container",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "fail",
+      "description": "Flags well-known host paths that are bind-mounted into the workload (/host, host /etc, etc.).",
+      "evidence": [
+        "nested proc mount at /proc/bus",
+        "nested proc mount at /proc/fs",
+        "nested proc mount at /proc/irq",
+        "nested proc mount at /proc/sys",
+        "nested proc mount at /proc/sysrq-trigger"
+      ],
+      "recommendation": "Avoid mounting host paths into containers. If unavoidable, mount the smallest specific path you need and use readOnly: true.",
+      "started_at": "2026-05-03T16:49:02.018632834Z",
+      "duration_ns": 4469667
+    },
+    {
+      "id": "container.no_new_privs",
+      "name": "no_new_privs flag",
+      "module": "container",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "pass",
+      "description": "Reports the kernel's no_new_privs bit, the foundation for blocking suid-based privilege escalation inside the container.",
+      "evidence": [
+        "NoNewPrivs: 1"
+      ],
+      "started_at": "2026-05-03T16:49:02.023186584Z",
+      "duration_ns": 19779709
+    },
+    {
+      "id": "container.privileged",
+      "name": "Privileged container",
+      "module": "container",
+      "severity": 4,
+      "severity_label": "critical",
+      "status": "pass",
+      "description": "A privileged container holds the full Linux capability set and a writable /sys, which is functionally equivalent to host root.",
+      "evidence": [
+        "CapEff=0x0000000000000000 (full=false)",
+        "/sys writable: false"
+      ],
+      "started_at": "2026-05-03T16:49:02.017955167Z",
+      "duration_ns": 6105375
+    },
+    {
+      "id": "container.runtime",
+      "name": "Container runtime detection",
+      "module": "container",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "fail",
+      "description": "Identifies the container runtime by inspecting marker files. Read-only.",
+      "evidence": [
+        "detected runtime: docker",
+        "/.dockerenv exists"
+      ],
+      "recommendation": "Informational. Use this signal to scope follow-up checks.",
+      "started_at": "2026-05-03T16:49:01.990967Z",
+      "duration_ns": 5659167
+    },
+    {
+      "id": "container.runtime.sandboxed",
+      "name": "Sandboxed runtime fingerprint",
+      "module": "container",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "pass",
+      "description": "Detects gVisor / Kata / Firecracker fingerprints to contextualise other findings.",
+      "evidence": [
+        "no sandboxed-runtime fingerprint found"
+      ],
+      "started_at": "2026-05-03T16:49:01.996335084Z",
+      "duration_ns": 15887000
+    },
+    {
+      "id": "container.seccomp",
+      "name": "Seccomp profile applied",
+      "module": "container",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "fail",
+      "description": "Reports whether a seccomp filter is active on the workload. Without seccomp, every kernel syscall is reachable.",
+      "evidence": [
+        "Seccomp: 0 (disabled)"
+      ],
+      "recommendation": "Set securityContext.seccompProfile.type: RuntimeDefault, or use --security-opt seccomp=default.json.",
+      "started_at": "2026-05-03T16:49:01.994876584Z",
+      "duration_ns": 31395667
+    },
+    {
+      "id": "container.user.root",
+      "name": "Container running as root",
+      "module": "container",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Detects whether the workload's effective UID is 0. Root inside a container, combined with any kernel CVE or misconfiguration, often becomes root on the host.",
+      "evidence": [
+        "running as uid=1000 gid=1000"
+      ],
+      "started_at": "2026-05-03T16:49:02.019070959Z",
+      "duration_ns": 2463375
+    },
+    {
+      "id": "container.user_namespace",
+      "name": "User namespace remapping",
+      "module": "container",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "fail",
+      "description": "Inspects /proc/self/uid_map to detect whether root in the container maps to root on the host.",
+      "evidence": [
+        "uid_map: 0          0 4294967295",
+        "root inside == root on host"
+      ],
+      "recommendation": "Enable user-namespace remapping: dockerd --userns-remap=default, or PSS Restricted with runAsNonRoot: true.",
+      "started_at": "2026-05-03T16:49:02.01733775Z",
+      "duration_ns": 1726542
+    },
+    {
+      "id": "host.cgroup.writable_v1",
+      "name": "Writable cgroup v1 hierarchy",
+      "module": "host",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Reports writable cgroup v1 mounts, the prerequisite for the classic release_agent escape pattern. The check is read-only and never writes to release_agent.",
+      "started_at": "2026-05-03T16:49:01.993865417Z",
+      "duration_ns": 20510750
+    },
+    {
+      "id": "host.devices.raw_block",
+      "name": "Host raw block devices exposed",
+      "module": "host",
+      "severity": 4,
+      "severity_label": "critical",
+      "status": "pass",
+      "description": "Detects raw block devices visible inside the workload (sda, vda, nvme...). This is a direct path to host filesystem read access.",
+      "started_at": "2026-05-03T16:49:02.024072084Z",
+      "duration_ns": 17029208
+    },
+    {
+      "id": "host.kernel.version",
+      "name": "Host kernel version",
+      "module": "host",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "fail",
+      "description": "Reports /proc/version for cross-referencing with kernel CVE feeds.",
+      "evidence": [
+        "Linux version 6.10.14-linuxkit (root@buildkitsandbox) (gcc (Alpine 13.2.1_git20240309) 13.2.1 20240309, GNU ld (GNU Binutils) 2.42) #1 SMP Thu Mar 20 16:32:56 UTC 2025"
+      ],
+      "recommendation": "Informational. Cross-reference with vendor CVE feeds.",
+      "started_at": "2026-05-03T16:49:02.015779917Z",
+      "duration_ns": 2152958
+    },
+    {
+      "id": "host.modprobe_path",
+      "name": "modprobe path readable",
+      "module": "host",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "fail",
+      "description": "Reports whether /proc/sys/kernel/modprobe is readable inside the container — a building block for the CVE-2022-0492 family of escapes.",
+      "evidence": [
+        "modprobe path: /sbin/modprobe",
+        "if /proc/sys is also writable, this becomes the CVE-2022-0492 escape primitive"
+      ],
+      "recommendation": "Mask /proc/sys/kernel/modprobe in the container. Default seccomp/apparmor profiles do this.",
+      "started_at": "2026-05-03T16:49:02.01586425Z",
+      "duration_ns": 1455750
+    },
+    {
+      "id": "host.network.shared",
+      "name": "Host network namespace shared",
+      "module": "host",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "fail",
+      "description": "Heuristic detection of --network=host / hostNetwork: true via /proc/net/dev.",
+      "evidence": [
+        "interfaces visible to workload:",
+        "tunl0",
+        "gre0",
+        "gretap0",
+        "erspan0",
+        "ip_vti0",
+        "ip6_vti0",
+        "sit0",
+        "ip6tnl0",
+        "ip6gre0",
+        "eth0"
+      ],
+      "recommendation": "Drop --network=host (Docker) / hostNetwork: true (Kubernetes). The pod should have its own network namespace.",
+      "started_at": "2026-05-03T16:49:02.016159584Z",
+      "duration_ns": 2463291
+    },
+    {
+      "id": "host.pid_namespace",
+      "name": "Host PID namespace shared",
+      "module": "host",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "pass",
+      "description": "Heuristic detection of hostPID: true based on /proc/1/comm.",
+      "evidence": [
+        "/proc/1/comm = lab-keepalive"
+      ],
+      "started_at": "2026-05-03T16:49:02.023110584Z",
+      "duration_ns": 1707750
+    },
+    {
+      "id": "host.proc_kallsyms",
+      "name": "Unredacted /proc/kallsyms",
+      "module": "host",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "pass",
+      "description": "Reports whether kernel symbol addresses are exposed (kptr_restrict=0). Useful to attackers for KASLR bypass.",
+      "evidence": [
+        "kallsyms addresses redacted (kptr_restrict\u003e=1)"
+      ],
+      "started_at": "2026-05-03T16:49:02.015695334Z",
+      "duration_ns": 38442084
+    },
+    {
+      "id": "host.proc_kcore",
+      "name": "/proc/kcore exposed",
+      "module": "host",
+      "severity": 4,
+      "severity_label": "critical",
+      "status": "fail",
+      "description": "Detects whether /proc/kcore — a virtual file mapping all of host kernel memory — is visible inside the workload.",
+      "evidence": [
+        "/proc/kcore visible (mode=Dcrw-rw-rw-)",
+        "file content intentionally NOT inspected"
+      ],
+      "recommendation": "Container runtimes mask /proc/kcore by default. If you see it, the workload is using a custom seccomp/apparmor profile that disables that masking, or runs with --privileged. Restore default masking.",
+      "started_at": "2026-05-03T16:49:02.009774125Z",
+      "duration_ns": 4148792
+    },
+    {
+      "id": "host.proc_visibility",
+      "name": "Excessive /proc visibility",
+      "module": "host",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "pass",
+      "description": "Counts PIDs visible in /proc; large counts suggest a shared PID namespace.",
+      "evidence": [
+        "2 PIDs visible in /proc"
+      ],
+      "started_at": "2026-05-03T16:49:02.012240167Z",
+      "duration_ns": 13373250
+    },
+    {
+      "id": "host.sysctl.unsafe",
+      "name": "Unsafe host sysctls visible",
+      "module": "host",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "fail",
+      "description": "Inspects a curated list of /proc/sys entries (ptrace_scope, dmesg_restrict, kptr_restrict, ...) and flags non-hardened values.",
+      "evidence": [
+        "/proc/sys/kernel/kptr_restrict = 0 (kptr_restrict=0 leaks kernel pointers (KASLR bypass aid))",
+        "/proc/sys/kernel/unprivileged_bpf_disabled = 0 (unprivileged_bpf enabled has historically been a CVE factory)"
+      ],
+      "recommendation": "Apply these sysctl values on the host (or via a hardened kernel command line).",
+      "started_at": "2026-05-03T16:49:02.021540834Z",
+      "duration_ns": 19689709
+    },
+    {
+      "id": "k8s.api.reachable",
+      "name": "Kubernetes API reachable from pod",
+      "module": "kubernetes",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "skip",
+      "description": "Performs an unauthenticated TCP connect to the in-cluster API endpoint to confirm reachability. No HTTP requests are issued.",
+      "evidence": [
+        "not running in Kubernetes"
+      ],
+      "started_at": "2026-05-03T16:49:02.003419584Z",
+      "duration_ns": 4492584
+    },
+    {
+      "id": "k8s.detect",
+      "name": "Kubernetes environment detection",
+      "module": "kubernetes",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "skip",
+      "description": "Detects whether the workload is running inside a Kubernetes pod by inspecting env vars and ServiceAccount artefacts.",
+      "evidence": [
+        "no Kubernetes environment indicators found"
+      ],
+      "started_at": "2026-05-03T16:49:02.013873875Z",
+      "duration_ns": 2282459
+    },
+    {
+      "id": "k8s.sa.ca",
+      "name": "API server CA bundle present",
+      "module": "kubernetes",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "skip",
+      "description": "Reports the presence of the API server CA bundle, indicating that TLS verification can be performed.",
+      "evidence": [
+        "not running in Kubernetes"
+      ],
+      "started_at": "2026-05-03T16:49:02.01393075Z",
+      "duration_ns": 1841917
+    },
+    {
+      "id": "k8s.sa.namespace",
+      "name": "Pod namespace identification",
+      "module": "kubernetes",
+      "severity": 0,
+      "severity_label": "info",
+      "status": "skip",
+      "description": "Reads the projected namespace file to identify the pod's namespace.",
+      "evidence": [
+        "not running in Kubernetes"
+      ],
+      "started_at": "2026-05-03T16:49:02.014381875Z",
+      "duration_ns": 1462750
+    },
+    {
+      "id": "k8s.sa.token",
+      "name": "ServiceAccount token mounted",
+      "module": "kubernetes",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "skip",
+      "description": "Reports whether a ServiceAccount token is bind-mounted into the pod. Tokens are commonly used for lateral movement after RCE.",
+      "evidence": [
+        "not running in Kubernetes"
+      ],
+      "started_at": "2026-05-03T16:49:02.021892375Z",
+      "duration_ns": 1267292
+    },
+    {
+      "id": "k8s.token.decoded",
+      "name": "ServiceAccount token claims",
+      "module": "kubernetes",
+      "severity": 2,
+      "severity_label": "medium",
+      "status": "skip",
+      "description": "Decodes the SA token JWT *claims* (header+payload, no signature verification, no network call) so the report shows audience, expiry, namespace and SA name. Token value is never logged.",
+      "evidence": [
+        "not running in Kubernetes"
+      ],
+      "started_at": "2026-05-03T16:49:02.013410042Z",
+      "duration_ns": 2005125
+    }
+  ]
+}

@@ -17,6 +17,8 @@ const (
 	OutputTable    OutputFormat = "table"
 	OutputJSON     OutputFormat = "json"
 	OutputMarkdown OutputFormat = "markdown"
+	OutputHTML     OutputFormat = "html"
+	OutputSARIF    OutputFormat = "sarif"
 )
 
 // Config is the flat, validated configuration consumed by `scan`.
@@ -32,6 +34,7 @@ type Config struct {
 	GlobalTimeout   time.Duration
 	Verbose         bool
 	Quiet           bool
+	OnlyFailures    bool
 	// FailOn is the threshold above which the process exits non-zero.
 	// SeverityInfo means "never fail".
 	FailOn check.Severity

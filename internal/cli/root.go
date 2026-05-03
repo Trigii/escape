@@ -23,6 +23,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runScan(rest, stdout, stderr)
 	case "list-checks":
 		return runListChecks(rest, stdout, stderr)
+	case "explain":
+		return runExplain(rest, stdout, stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintln(stdout, Banner)
 		fmt.Fprintf(stdout, "  version: %s\n", Version)
@@ -46,15 +48,19 @@ USAGE
 COMMANDS
     scan          Run audit checks against the current environment
     list-checks   Print every registered check
+    explain       Print metadata for one or more check IDs (no execution)
     version       Print version info
     help          Show this help
 
 GLOBAL EXAMPLES
     escape scan
-    escape scan --output json --output-file report.json
+    escape scan --output html --output-file report.html
+    escape scan --output sarif --output-file findings.sarif --fail-on high
     escape scan --module container,kubernetes --min-severity high
-    escape scan --id "container.*" --verbose
+    escape scan --only-failures
+    escape scan --id "host.*"
     escape list-checks --output json
+    escape explain container.privileged host.proc_kcore
 
 Run "escape <command> --help" for command-specific options.
 `

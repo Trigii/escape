@@ -1,0 +1,96 @@
+# ESCAPE lab — six containers showcasing distinct misconfiguration classes.
+#
+# Run with:
+#     make release   # in the repo root, produces dist/escape-linux-amd64
+#     cd lab && ./run.sh
+#
+# Each service is intentionally bad in ONE specific way (or, for `worst`,
+# in many ways) so the lab doubles as a pedagogical fixture.
+
+services:
+
+  # 1. Hardened control. Should produce ~zero failures except cloud/IMDS
+  #    if the lab host happens to expose 169.254.169.254.
+  clean:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_clean
+    user: "1000:1000"
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=8m
+    volumes:
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity
+
+  # 2. Privileged container — full caps, host devices, writable /sys.
+  #    Expect: container.privileged FAIL critical.
+  privileged:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_privileged
+    privileged: true
+    volumes:
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity
+
+  # 3. Docker socket bind-mount + sensitive host paths.
+  #    Expect: container.mounts.docker_sock + container.mounts.sensitive FAIL.
+  host-mounts:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_host_mounts
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc:/host/etc:ro
+      - /var/run:/host/var/run:ro
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity
+
+  # 4. Capability buffet — explicit add of dangerous capabilities.
+  #    Expect: container.capabilities.dangerous FAIL high.
+  caps-galore:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_caps
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - SYS_MODULE
+      - DAC_READ_SEARCH
+      - NET_ADMIN
+    volumes:
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity
+
+  # 5. Root + writable rootfs + no_new_privs disabled + seccomp unconfined.
+  #    Expect: container.user.root + container.no_new_privs +
+  #            container.seccomp + container.fs.read_only_root all FAIL.
+  rootful:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_rootful
+    user: "0:0"
+    security_opt:
+      - "seccomp=unconfined"
+      - "no-new-privileges:false"
+      - "apparmor=unconfined"
+    volumes:
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity
+
+  # 6. Host PID + host network namespace.
+  #    Expect: host.pid_namespace + host.network.shared +
+  #            host.proc_visibility FAIL.
+  hostns:
+    build: .
+    image: escape-lab:alpine
+    container_name: escape_lab_hostns
+    pid: host
+    network_mode: host
+    volumes:
+      - ../dist/escape-linux-amd64:/usr/local/bin/escape:ro
+    command: sleep infinity

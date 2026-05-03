@@ -1,0 +1,26 @@
+# Expected findings per container. Format: <container> <expected-fail-id>
+# The runner script greps each container's JSON output for these IDs and
+# reports the matrix. A line beginning with "#" is a comment.
+
+clean
+clean container.runtime  # info-level "is a container" — always present in containers
+
+privileged
+privileged container.privileged
+privileged container.capabilities.dangerous
+
+host-mounts
+host-mounts container.mounts.docker_sock
+host-mounts container.mounts.sensitive
+
+caps-galore
+caps-galore container.capabilities.dangerous
+
+rootful
+rootful container.user.root
+rootful container.no_new_privs
+rootful container.seccomp
+
+hostns
+hostns host.pid_namespace
+hostns host.network.shared

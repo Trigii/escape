@@ -21,18 +21,19 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 
 	var (
-		outputFmt   = fs.String("output", "table", "output format: table|json|markdown")
-		outputFile  = fs.String("output-file", "", "write output to file instead of stdout")
-		noColor     = fs.Bool("no-color", false, "disable ANSI colors in table output")
-		minSev      = fs.String("min-severity", "info", "drop findings below this severity")
-		modulesFlag = fs.String("module", "", "comma-separated modules to run (container,kubernetes,host,cloud)")
-		idsFlag     = fs.String("id", "", "comma-separated check IDs (supports trailing *)")
-		parallel    = fs.Int("parallelism", 8, "max in-flight checks")
-		perTimeout  = fs.Duration("timeout", 5*time.Second, "per-check timeout")
-		globTimeout = fs.Duration("global-timeout", 60*time.Second, "global run timeout (0 = none)")
-		verbose     = fs.Bool("verbose", false, "show evidence for passed checks too")
-		quiet       = fs.Bool("quiet", false, "suppress logging on stderr")
-		failOn      = fs.String("fail-on", "info", "exit non-zero if any failure >= this severity (info=never)")
+		outputFmt    = fs.String("output", "table", "output format: table|json|markdown|html|sarif")
+		outputFile   = fs.String("output-file", "", "write output to file instead of stdout")
+		noColor      = fs.Bool("no-color", false, "disable ANSI colors in table output")
+		minSev       = fs.String("min-severity", "info", "drop findings below this severity")
+		modulesFlag  = fs.String("module", "", "comma-separated modules to run (container,kubernetes,host,cloud)")
+		idsFlag      = fs.String("id", "", "comma-separated check IDs (supports trailing *)")
+		parallel     = fs.Int("parallelism", 8, "max in-flight checks")
+		perTimeout   = fs.Duration("timeout", 5*time.Second, "per-check timeout")
+		globTimeout  = fs.Duration("global-timeout", 60*time.Second, "global run timeout (0 = none)")
+		verbose      = fs.Bool("verbose", false, "show evidence for passed checks too")
+		quiet        = fs.Bool("quiet", false, "suppress logging on stderr")
+		onlyFailures = fs.Bool("only-failures", false, "in table output, hide passed/skipped checks")
+		failOn       = fs.String("fail-on", "info", "exit non-zero if any failure >= this severity (info=never)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -47,6 +48,10 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 		cfg.Output = config.OutputJSON
 	case "markdown", "md":
 		cfg.Output = config.OutputMarkdown
+	case "html":
+		cfg.Output = config.OutputHTML
+	case "sarif":
+		cfg.Output = config.OutputSARIF
 	default:
 		return fail(stderr, "invalid --output value: %q", *outputFmt)
 	}
@@ -69,6 +74,7 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 	cfg.GlobalTimeout = *globTimeout
 	cfg.Verbose = *verbose
 	cfg.Quiet = *quiet
+	cfg.OnlyFailures = *onlyFailures
 
 	// Build logger.
 	level := logging.LevelInfo
@@ -114,7 +120,9 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 
 	switch cfg.Output {
 	case config.OutputTable:
-		_ = output.WriteTable(w, results, output.TableOptions{NoColor: cfg.NoColor, Verbose: cfg.Verbose})
+		_ = output.WriteTable(w, results, output.TableOptions{
+			NoColor: cfg.NoColor, Verbose: cfg.Verbose, OnlyFailures: cfg.OnlyFailures,
+		})
 	case config.OutputJSON:
 		if err := output.WriteJSON(w, results, Version); err != nil {
 			return fail(stderr, "write json: %v", err)
@@ -122,6 +130,14 @@ func runScan(args []string, stdout, stderr io.Writer) int {
 	case config.OutputMarkdown:
 		if err := output.WriteMarkdown(w, results, Version); err != nil {
 			return fail(stderr, "write markdown: %v", err)
+		}
+	case config.OutputHTML:
+		if err := output.WriteHTML(w, results, Version); err != nil {
+			return fail(stderr, "write html: %v", err)
+		}
+	case config.OutputSARIF:
+		if err := output.WriteSARIF(w, results, Version); err != nil {
+			return fail(stderr, "write sarif: %v", err)
 		}
 	}
 
