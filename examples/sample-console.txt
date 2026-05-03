@@ -1,0 +1,41 @@
+$ escape scan
+  ID                                SEVERITY  STATUS  CHECK
+  cloud.env.credentials             high      pass    Cloud credentials in environment
+  cloud.imds.reachable              high      fail    Cloud instance metadata reachable
+      · AWS / Azure / GCP IMDS @ 169.254.169.254:80 — TCP open
+      → Block egress to 169.254.169.254 from workloads that don't need it. ...
+  container.apparmor                low       fail    AppArmor profile applied
+      · AppArmor profile: unconfined
+      → Apply an AppArmor profile (e.g. runtime/default in Kubernetes ...).
+  container.capabilities.dangerous  high      fail    Dangerous Linux capabilities present
+      · CapEff=0x00000000a80425fb
+      · CAP_SYS_ADMIN (near-root inside the container; many escapes pivot through it)
+      · CAP_NET_ADMIN (modify routing/firewalling, sniff networks)
+      → Drop capabilities you don't need (--cap-drop=ALL then --cap-add only ...).
+  container.mounts.docker_sock      critical  fail    Container runtime socket exposed
+      · runtime socket(s) reachable from inside the container:
+      · /var/run/docker.sock
+      → Never bind-mount the runtime socket into a workload. ...
+  container.mounts.sensitive        high      pass    Sensitive host paths mounted
+  container.no_new_privs            medium    pass    no_new_privs flag
+  container.privileged              critical  pass    Privileged container
+  container.runtime                 info      fail    Container runtime detection
+      · detected runtime: docker
+      · /.dockerenv exists
+      → Informational. Use this signal to scope follow-up checks.
+  container.seccomp                 medium    pass    Seccomp profile applied
+  container.user.root               high      fail    Container running as root
+      · running as uid=0 gid=0 (root)
+      → Set a non-root USER in the Dockerfile or runAsNonRoot: true ...
+  host.cgroup.writable_v1           high      pass    Writable cgroup v1 hierarchy
+  host.devices.raw_block            critical  pass    Host raw block devices exposed
+  host.pid_namespace                high      pass    Host PID namespace shared
+  host.proc_visibility              medium    pass    Excessive /proc visibility
+  k8s.api.reachable                 medium    skip    Kubernetes API reachable from pod
+  k8s.detect                        info      skip    Kubernetes environment detection
+  k8s.sa.ca                         info      skip    API server CA bundle present
+  k8s.sa.namespace                  info      skip    Pod namespace identification
+  k8s.sa.token                      medium    skip    ServiceAccount token mounted
+
+  Summary:  total=20 pass=10 fail=5 skip=5 error=0
+  Failed:    critical=1  high=3  medium=0  low=1  info=1

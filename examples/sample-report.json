@@ -1,0 +1,59 @@
+{
+  "tool": "escape",
+  "version": "v0.1.0-dev",
+  "generated_at": "2026-05-02T13:21:08.412Z",
+  "summary": {
+    "Total": 20,
+    "Pass": 10,
+    "Fail": 5,
+    "Skip": 5,
+    "Error": 0,
+    "FailBySeverity": {
+      "0": 1,
+      "1": 1,
+      "2": 0,
+      "3": 2,
+      "4": 1
+    }
+  },
+  "results": [
+    {
+      "id": "container.capabilities.dangerous",
+      "name": "Dangerous Linux capabilities present",
+      "module": "container",
+      "severity": 3,
+      "severity_label": "high",
+      "status": "fail",
+      "description": "Inspects CapEff in /proc/self/status and flags any capability commonly used as a stepping stone to container escape.",
+      "evidence": [
+        "CapEff=0x00000000a80425fb",
+        "CAP_SYS_ADMIN (near-root inside the container; many escapes pivot through it)",
+        "CAP_NET_ADMIN (modify routing/firewalling, sniff networks)"
+      ],
+      "recommendation": "Drop capabilities you don't need (--cap-drop=ALL then --cap-add only the strictly required) or set securityContext.capabilities.drop: [\"ALL\"] in Kubernetes.",
+      "references": [
+        "https://man7.org/linux/man-pages/man7/capabilities.7.html",
+        "https://attack.mitre.org/techniques/T1611/"
+      ],
+      "started_at": "2026-05-02T13:21:08.124Z",
+      "duration_ns": 412398
+    },
+    {
+      "id": "container.mounts.docker_sock",
+      "name": "Container runtime socket exposed",
+      "module": "container",
+      "severity": 4,
+      "severity_label": "critical",
+      "status": "fail",
+      "description": "Detects whether docker.sock, containerd.sock or crio.sock are reachable from inside the container — equivalent to giving root on the host.",
+      "evidence": [
+        "runtime socket(s) reachable from inside the container:",
+        "/var/run/docker.sock"
+      ],
+      "recommendation": "Never bind-mount the runtime socket into a workload. If the container needs to talk to the cluster API, use a ServiceAccount with a least-privilege RBAC role instead.",
+      "references": ["https://attack.mitre.org/techniques/T1611/"],
+      "started_at": "2026-05-02T13:21:08.124Z",
+      "duration_ns": 287101
+    }
+  ]
+}
