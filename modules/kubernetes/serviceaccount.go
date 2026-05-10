@@ -94,6 +94,7 @@ func init() {
 			"https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/",
 			"https://attack.mitre.org/techniques/T1552/007/",
 		},
+		AttackValue: []string{"T1552/007"},
 	}})
 	engine.Register(&saNamespaceCheck{Base: check.Base{
 		IDValue:          "k8s.sa.namespace",

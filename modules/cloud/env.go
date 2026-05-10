@@ -57,5 +57,6 @@ func init() {
 		ModuleValue:      "cloud",
 		SeverityValue:    check.SeverityHigh,
 		DescriptionValue: "Detects suspicious env var names commonly carrying long-lived cloud credentials. Values are never logged.",
+		AttackValue:      []string{"T1552/001"},
 	}})
 }

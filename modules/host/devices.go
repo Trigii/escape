@@ -48,5 +48,6 @@ func init() {
 		ModuleValue:      "host",
 		SeverityValue:    check.SeverityCritical,
 		DescriptionValue: "Detects raw block devices visible inside the workload (sda, vda, nvme...). This is a direct path to host filesystem read access.",
+		AttackValue:      []string{"T1611", "T1003"},
 	}})
 }

@@ -136,6 +136,7 @@ func init() {
 		ReferencesValue: []string{
 			"https://attack.mitre.org/techniques/T1611/",
 		},
+		AttackValue: []string{"T1611", "T1610"},
 	}})
 	engine.Register(&sensitiveMountsCheck{Base: check.Base{
 		IDValue:          "container.mounts.sensitive",

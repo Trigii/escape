@@ -84,5 +84,6 @@ func init() {
 			"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html",
 			"https://attack.mitre.org/techniques/T1552/005/",
 		},
+		AttackValue: []string{"T1552/005"},
 	}})
 }

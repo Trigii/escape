@@ -119,6 +119,7 @@ func init() {
 		ReferencesValue: []string{
 			"https://man7.org/linux/man-pages/man5/proc.5.html",
 		},
+		AttackValue: []string{"T1003", "T1212"},
 	}})
 	engine.Register(&kallsymsCheck{Base: check.Base{
 		IDValue:          "host.proc_kallsyms",
@@ -136,6 +137,8 @@ func init() {
 		ReferencesValue: []string{
 			"https://nvd.nist.gov/vuln/detail/CVE-2022-0492",
 		},
+		AttackValue: []string{"T1611"},
+		CVEValue:    []string{"CVE-2022-0492"},
 	}})
 	engine.Register(&kernelVersionCheck{Base: check.Base{
 		IDValue:          "host.kernel.version",

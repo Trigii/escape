@@ -16,6 +16,8 @@ import (
 	_ "github.com/tristanvaquero/escape/modules/container"
 	_ "github.com/tristanvaquero/escape/modules/host"
 	_ "github.com/tristanvaquero/escape/modules/kubernetes"
+	// Side-effect imports: registering attack chains.
+	_ "github.com/tristanvaquero/escape/modules/chains"
 )
 
 func main() {

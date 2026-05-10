@@ -56,5 +56,7 @@ func init() {
 		ReferencesValue: []string{
 			"https://nvd.nist.gov/vuln/detail/CVE-2022-0492",
 		},
+		AttackValue: []string{"T1611"},
+		CVEValue:    []string{"CVE-2022-0492"},
 	}})
 }

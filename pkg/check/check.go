@@ -25,6 +25,10 @@ type Check interface {
 	Severity() Severity
 	// References returns optional URLs (CIS, MITRE ATT&CK, vendor docs).
 	References() []string
+	// Attack returns MITRE ATT&CK technique IDs (e.g. "T1611"). May be empty.
+	Attack() []string
+	// CVE returns directly-related CVE IDs. May be empty.
+	CVE() []string
 	// Run executes the check and returns a populated Result.
 	// Implementations should handle their own errors and return them
 	// via Result.Err with Status=StatusError rather than panicking.
@@ -43,6 +47,13 @@ type Base struct {
 	DescriptionValue string
 	SeverityValue    Severity
 	ReferencesValue  []string
+	// AttackValue holds the MITRE ATT&CK technique IDs (e.g. "T1611",
+	// "T1552/005") that map to this finding. Surfaces in `escape exploit`
+	// output and ATT&CK heatmaps.
+	AttackValue []string
+	// CVEValue lists the CVE identifiers most directly enabled by this
+	// configuration weakness (CVE-2022-0492 etc).
+	CVEValue []string
 }
 
 func (b Base) ID() string          { return b.IDValue }
@@ -56,5 +67,25 @@ func (b Base) References() []string {
 	}
 	out := make([]string, len(b.ReferencesValue))
 	copy(out, b.ReferencesValue)
+	return out
+}
+
+// Attack returns MITRE ATT&CK technique IDs (may be empty).
+func (b Base) Attack() []string {
+	if b.AttackValue == nil {
+		return nil
+	}
+	out := make([]string, len(b.AttackValue))
+	copy(out, b.AttackValue)
+	return out
+}
+
+// CVE returns associated CVE identifiers (may be empty).
+func (b Base) CVE() []string {
+	if b.CVEValue == nil {
+		return nil
+	}
+	out := make([]string, len(b.CVEValue))
+	copy(out, b.CVEValue)
 	return out
 }

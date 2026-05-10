@@ -25,6 +25,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return runListChecks(rest, stdout, stderr)
 	case "explain":
 		return runExplain(rest, stdout, stderr)
+	case "exploit":
+		return runExploit(rest, stdout, stderr)
 	case "version", "--version", "-v":
 		fmt.Fprintln(stdout, Banner)
 		fmt.Fprintf(stdout, "  version: %s\n", Version)
@@ -46,7 +48,8 @@ USAGE
     escape <command> [flags]
 
 COMMANDS
-    scan          Run audit checks against the current environment
+    scan          Run audit checks against the current environment (read-only)
+    exploit       Correlate findings into attack chains and print PoC commands
     list-checks   Print every registered check
     explain       Print metadata for one or more check IDs (no execution)
     version       Print version info
@@ -61,6 +64,13 @@ GLOBAL EXAMPLES
     escape scan --id "host.*"
     escape list-checks --output json
     escape explain container.privileged host.proc_kcore
+    escape exploit                          # show applicable attack chains
+    escape exploit --steps                   # include copy-paste PoC commands
+    escape exploit --from report.json        # analyse a saved scan
+    escape exploit --output markdown --output-file kill-chain.md
+
+⚠ exploit prints public-domain PoC commands but NEVER runs them itself.
+   Use only on systems you have explicit authorisation to test.
 
 Run "escape <command> --help" for command-specific options.
 `

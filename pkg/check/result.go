@@ -32,6 +32,8 @@ type Result struct {
 	Evidence       []string      `json:"evidence,omitempty"`
 	Recommendation string        `json:"recommendation,omitempty"`
 	References     []string      `json:"references,omitempty"`
+	Attack         []string      `json:"attack,omitempty"`
+	CVE            []string      `json:"cve,omitempty"`
 	Err            string        `json:"error,omitempty"`
 	StartedAt      time.Time     `json:"started_at"`
 	Duration       time.Duration `json:"duration_ns"`
@@ -49,6 +51,9 @@ func NewPass(c Check) Result {
 		SeverityLabel: c.Severity().String(),
 		Status:        StatusPass,
 		Description:   c.Description(),
+		References:    c.References(),
+		Attack:        c.Attack(),
+		CVE:           c.CVE(),
 	}
 }
 

@@ -89,5 +89,7 @@ func init() {
 			"https://man7.org/linux/man-pages/man7/capabilities.7.html",
 			"https://attack.mitre.org/techniques/T1611/",
 		},
+		AttackValue: []string{"T1611"},
+		CVEValue:    []string{"CVE-2022-0492"},
 	}})
 }
